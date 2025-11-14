@@ -1,6 +1,4 @@
 
-<<<<<<< HEAD
-
 # FastTransfer – Docker Image (Linux x64) – vX.Y.Z+
 
 Minimal, production‑ready container image to run **FastTransfer** (high‑performance parallel data import/transfer CLI). This setup targets **FastTransfer ≥ X.Y.Z**, which supports passing the license **inline** via `--license "<content>"`.
@@ -78,18 +76,6 @@ or specify a version tag:
 
 ```bash
 docker pull aetp/fasttransfer:vX.Y.Z
-=======
-# FastTransfer Image
-
-This repository contains the Docker image for **FastTransfer** from [arpe.io](https://www.arpe.io/fasttransfer).
-
-The image is available on **Docker Hub** and can be pulled and used in your environment with **Docker, Kubernetes, or any container platform**.
-
-## Pull the image
-
-```bash
-docker pull aetperf/fasttransfer:latest
->>>>>>> 295495a9cd761f679c9442ee433b8973bea19c8e
 ```
 
 ## Usage
@@ -341,13 +327,5 @@ If the `--settingsfile` argument is not provided, FastTransfer will use its buil
 * This image **does not embed** the proprietary FastTransfer binary; you must provide it, and a valid license is required to operate.
 * OCI labels are set for traceability (source, vendor, license) in the Dockerfile.
 * FastTransfer supports many source and target database types (e.g., MySQL, PostgreSQL, SQL Server, Oracle, DuckDB, ClickHouse) and both file‑based and DB‑to‑DB transfers.
-=======
-You can run the container directly with Docker:
 
-```bash
-docker run --rm aetperf/fasttransfer:latest --help
-```
-
-The image can also be integrated into **Kubernetes deployments**, CI/CD pipelines, or other container orchestration platforms.
->>>>>>> 295495a9cd761f679c9442ee433b8973bea19c8e
 
