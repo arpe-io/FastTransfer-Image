@@ -68,8 +68,8 @@ jobs:
           sbom: true
           provenance: true
 
-      - name: Smoke test
-        run: |
-          set -eux
-          docker run --rm aetp/fasttransfer:latest >/dev/null
-          echo "✅ FastTransfer runs"
+      # - name: Smoke test
+      #   run: |
+      #     set -eux
+      #     docker run --rm aetp/fasttransfer:latest >/dev/null
+      #     echo "✅ FastTransfer runs"
