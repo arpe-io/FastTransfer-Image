@@ -6,7 +6,7 @@ Minimal, production‑ready container image to run **FastTransfer** (high‑perf
 > **Binary required for custom build**  
 > The FastTransfer binary is **not** distributed in this repository. 
 > Request the **Linux x64** build here : 
-> [https://fasttransfer.arpe.io/start/](https://fasttransfer.arpe.io/start/))  
+> [https://fasttransfer.arpe.io/start/](https://fasttransfer.arpe.io/start/)
 > unzip and place it at the repository root (next to the `Dockerfile`), then build your own custom image.
 
 ## Table of contents
@@ -36,7 +36,7 @@ Minimal, production‑ready container image to run **FastTransfer** (high‑perf
 
 ## Get the binary (for build only)
 
-1. Request a trial: [https://www.arpe.io/get-your-fasttransfer-trial/](https://www.arpe.io/get-your-fasttransfer-trial/) ([Arpe][1])
+1. Request a trial: [https://fasttransfer.arpe.io/start/](https://fasttransfer.arpe.io/start/) ([Arpe][1])
 2. Rename the downloaded file to `fasttransfer` and ensure it is executable if testing locally:
 
    ```bash
