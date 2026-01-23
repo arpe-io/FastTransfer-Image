@@ -36,7 +36,7 @@ Minimal, production‑ready container image to run **FastTransfer** (high‑perf
 
 ## Get the binary (for build only)
 
-1. Request a trial: [https://fasttransfer.arpe.io/start/](https://fasttransfer.arpe.io/start/) ([Arpe][1])
+1. Request a trial: [https://fasttransfer.arpe.io/start/](https://fasttransfer.arpe.io/start/) 
 2. Rename the downloaded file to `fasttransfer` and ensure it is executable if testing locally:
 
    ```bash
