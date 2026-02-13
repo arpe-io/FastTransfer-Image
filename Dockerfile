@@ -1,18 +1,6 @@
 # syntax=docker/dockerfile:1.7
 FROM dhi.io/debian-base:trixie
 
-# Common runtime packages for self-contained .NET binaries (ICU/SSL/zlib/Kerberos), CA, tz, curl
-# Includes apt-get upgrade to ensure latest security patches
-RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ca-certificates tzdata curl \
-      passwd \
-      libicu76 \
-      libssl3 zlib1g libkrb5-3 \
-    ; rm -rf /var/lib/apt/lists/*
-
 # Non-root user
 ARG USER=fasttransfer
 ARG UID=10001
