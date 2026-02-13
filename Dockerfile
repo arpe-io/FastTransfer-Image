@@ -1,9 +1,11 @@
 # syntax=docker/dockerfile:1.7
-FROM dhi.io/debian-base:trixie@sha256:9bbe6d9dc0d7c341be923f144089a04a91985fe4b7509beacb6154c562f6b475
+FROM dhi.io/debian-base:trixie
 
 # Common runtime packages for self-contained .NET binaries (ICU/SSL/zlib/Kerberos), CA, tz, curl
+# Includes apt-get upgrade to ensure latest security patches
 RUN set -eux; \
     apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       ca-certificates tzdata curl \
       passwd \

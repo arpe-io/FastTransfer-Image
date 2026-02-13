@@ -6,7 +6,7 @@ Minimal, production‑ready container image to run **FastTransfer** (high‑perf
 > **Binary required for custom build**  
 > The FastTransfer binary is **not** distributed in this repository. 
 > Request the **Linux x64** build here : 
-> [https://www.arpe.io/get-your-fasttransfer-trial/](https://www.arpe.io/get-your-fasttransfer-trial/)  
+> [https://fastbcp.arpe.io/](https://fastbcp.arpe.io/)  
 > unzip and place it at the repository root (next to the `Dockerfile`), then build your own custom image.
 
 ## Table of contents
@@ -36,7 +36,7 @@ Minimal, production‑ready container image to run **FastTransfer** (high‑perf
 
 ## Get the binary (for build only)
 
-1. Request a trial: [https://www.arpe.io/get-your-fasttransfer-trial/](https://www.arpe.io/get-your-fasttransfer-trial/) ([Arpe][1])
+1. Request a trial: [https://fastbcp.arpe.io/](https://fastbcp.arpe.io/) 
 2. Rename the downloaded file to `fasttransfer` and ensure it is executable if testing locally:
 
    ```bash
@@ -56,7 +56,7 @@ docker run --rm fasttransfer:latest --version
 This container has `ENTRYPOINT` set to the `fasttransfer` binary. Any arguments you pass to `docker run` are forwarded to FastTransfer.
 
 ```bash
-docker run --rm fasttransfer:latest --help
+docker run --rm fasttransfer:latest -?
 ```
 
 ## License
@@ -140,7 +140,7 @@ Here are a few example usage scenarios illustrating how to run FastTransfer insi
 ## Configuring FastTransfer Logging with Custom Settings
 
 *Available starting from version X.Y.Z*
-FastTransfer supports **custom logging configuration** through an external settings file in JSON format. This allows you to control **how and where logs are written** — to console, to files, or dynamically per run. ([Architecture & Performance][2])
+FastTransfer supports **custom logging configuration** through an external settings file in JSON format. This allows you to control **how and where logs are written** — to console, to files, or dynamically per run. 
 [Custom settings files] (e.g., `FastTransfer_Settings.json`) must be **mounted into the container** under the `/config` directory.
 
 ---

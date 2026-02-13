@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag from FastTransfer (ex: v0.14.1)'
+        description: 'Version tag from FastTransfer (ex: v0.28.0)'
         required: true
+  schedule:
+    # Rebuild every Monday at 3 AM UTC to get latest base image updates
+    - cron: '0 3 * * 1'
 
 jobs:
   build-and-push:
@@ -21,27 +24,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
 
-      - name: Download FastTransfer binary from S3
-        run: |
-          set -eux
-          VERSION='${{ github.event.inputs.version }}'
-          FILE="FastTransfer-linux-x64-${VERSION}.zip"
-          S3_PATH="s3://aetpshared/FastTransfer/full/${FILE}"
-
-          echo "Checking if ${S3_PATH} exists..."
-          aws s3 ls "${S3_PATH}" >/dev/null
-
-          echo "Downloading ${FILE}..."
-          aws s3 cp "${S3_PATH}" FastTransfer.zip
-
-          unzip FastTransfer.zip -d ./FastTransfer_extracted
-          rm FastTransfer.zip
-
-          mv ./FastTransfer_extracted/FastTransfer ./FastTransfer
-          chmod +x ./FastTransfer
-
-          echo "✅ FastTransfer binary ready at ./FastTransfer"
-
       - name: Log in to Docker Hub (push)
         uses: docker/login-action@v3
         with:
@@ -56,20 +38,137 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push (with SBOM + provenance)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            aetp/fasttransfer:latest
-            aetp/fasttransfer:${{ github.event.inputs.version }}
-          no-cache: true
-          sbom: true
-          provenance: true
+      - name: Get versions to build
+        id: versions
+        run: |
+          # Get all existing tags from Docker Hub
+          ALL_VERSIONS=$(curl -s "https://hub.docker.com/v2/repositories/aetp/fasttransfer/tags/?page_size=100" | \
+            jq -r '.results[].name' | grep '^v[0-9]' | sort -V)
+          
+          # Find the latest version of each minor branch (e.g., latest 0.28.x, 0.27.x, etc.)
+          LATEST_PER_MINOR=$(echo "$ALL_VERSIONS" | \
+            sed 's/v\([0-9]*\.[0-9]*\)\.[0-9]*/\1/' | \
+            uniq | \
+            while read minor; do
+              echo "$ALL_VERSIONS" | grep "^v${minor}\." | tail -n 1
+            done | tr '\n' ' ')
+          
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "Scheduled build: rebuilding latest of each minor branch"
+            echo "Versions to rebuild: $LATEST_PER_MINOR"
+            echo "versions=$LATEST_PER_MINOR" >> $GITHUB_OUTPUT
+            echo "new_version=" >> $GITHUB_OUTPUT
+          else
+            echo "Manual build: building new version + latest of each minor branch"
+            NEW_VERSION="${{ github.event.inputs.version }}"
+            
+            echo "New version: $NEW_VERSION"
+            echo "Latest versions per minor branch to rebuild: $LATEST_PER_MINOR"
+            
+            echo "versions=$LATEST_PER_MINOR" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          fi
 
-      # - name: Smoke test
-      #   run: |
-      #     set -eux
-      #     docker run --rm aetp/fasttransfer:latest >/dev/null
-      #     echo "✅ FastTransfer runs"
+      - name: Build and push all versions
+        run: |
+          NEW_VERSION="${{ steps.versions.outputs.new_version }}"
+          VERSIONS="${{ steps.versions.outputs.versions }}"
+          
+          # Build/rebuild existing versions first (oldest to newest)
+          for VERSION in $VERSIONS; do
+            # Skip if this is the new version (will be built last)
+            if [ "$VERSION" = "$NEW_VERSION" ]; then
+              echo "Skipping $VERSION (will be built as new version at the end)"
+              continue
+            fi
+            
+            echo "================================================"
+            echo "Building version: $VERSION"
+            echo "================================================"
+            
+            # Download FastTransfer binary
+            FILE="FastTransfer-linux-x64-${VERSION}.zip"
+            S3_PATH="s3://aetpshared/FastTransfer/full/${FILE}"
+            
+            echo "Checking if ${S3_PATH} exists..."
+            if ! aws s3 ls "${S3_PATH}" >/dev/null 2>&1; then
+              echo "⚠️  Warning: ${S3_PATH} not found, skipping..."
+              continue
+            fi
+            
+            echo "Downloading ${FILE}..."
+            aws s3 cp "${S3_PATH}" FastTransfer.zip
+            
+            unzip -o FastTransfer.zip -d ./FastTransfer_extracted
+            rm FastTransfer.zip
+            
+            mv -f ./FastTransfer_extracted/FastTransfer ./FastTransfer
+            chmod +x ./FastTransfer
+            
+            # Build and push (version tag only, no 'latest')
+            docker buildx build \
+              --push \
+              --platform linux/amd64 \
+              --tag aetp/fasttransfer:${VERSION} \
+              --provenance=true \
+              --sbom=true \
+              --no-cache \
+              .
+            
+            echo "✅ Successfully built and pushed: ${VERSION}"
+            
+            # Cleanup
+            rm -rf ./FastTransfer ./FastTransfer_extracted
+          done
+          
+          # Build the new version last (manual builds only)
+          if [ -n "$NEW_VERSION" ]; then
+            echo "================================================"
+            echo "Building NEW version: $NEW_VERSION (will be tagged as latest)"
+            echo "================================================"
+            
+            FILE="FastTransfer-linux-x64-${NEW_VERSION}.zip"
+            S3_PATH="s3://aetpshared/FastTransfer/full/${FILE}"
+            
+            echo "Checking if ${S3_PATH} exists..."
+            aws s3 ls "${S3_PATH}" >/dev/null
+            
+            echo "Downloading ${FILE}..."
+            aws s3 cp "${S3_PATH}" FastTransfer.zip
+            
+            unzip -o FastTransfer.zip -d ./FastTransfer_extracted
+            rm FastTransfer.zip
+            
+            mv -f ./FastTransfer_extracted/FastTransfer ./FastTransfer
+            chmod +x ./FastTransfer
+            
+            # Build new version with 'latest' tag
+            docker buildx build \
+              --push \
+              --platform linux/amd64 \
+              --tag aetp/fasttransfer:${NEW_VERSION} \
+              --tag aetp/fasttransfer:latest \
+              --provenance=true \
+              --sbom=true \
+              --no-cache \
+              .
+            
+            echo "✅ Successfully built and pushed: ${NEW_VERSION} (+ latest)"
+            
+            rm -rf ./FastTransfer ./FastTransfer_extracted
+          fi
+          
+          # For scheduled builds, update latest with the most recent version
+          if [ "${{ github.event_name }}" = "schedule" ] && [ -n "$VERSIONS" ]; then
+            LATEST_VERSION=$(echo "$VERSIONS" | tr ' ' '\n' | tail -n 1)
+            echo "Tagging latest with ${LATEST_VERSION}..."
+            docker buildx imagetools create \
+              aetp/fasttransfer:${LATEST_VERSION} \
+              --tag aetp/fasttransfer:latest
+          fi
+
+      - name: Smoke test
+        run: |
+          set -eux
+          docker run --rm aetp/fasttransfer:latest --version
+          echo "✅ FastTransfer runs"
