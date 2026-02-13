@@ -444,4 +444,4 @@ If the `--settingsfile` argument is not provided, FastTransfer will use its buil
 - OCI labels are set for traceability (source, vendor, license) in the Dockerfile.
 - **Security maintenance:** The latest version of each minor branch (e.g., v0.27.x, v0.28.x, v0.29.x) is automatically rebuilt weekly with security patches, ensuring long-term security without forcing upgrades to newer minor versions.
 - FastTransfer supports many source and target database types (e.g., MySQL, PostgreSQL, SQL Server, Oracle, DuckDB, ClickHouse) and both file-based and DB-to-DB transfers.
-- For questions or support, visit the [FastTransfer documentation](https://www.arpe.io/fasttransfer) or contact [ARPE.IO](https://www.arpe.io/).
+- For questions or support, visit the [FastTransfer documentation](https://fasttransfer.arpe.io/docs/latest/) or contact [ARPE.IO](https://www.arpe.io/).
