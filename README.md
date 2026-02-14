@@ -6,7 +6,7 @@ This setup targets **FastTransfer ≥ 0.14.0**, which supports passing the licen
 
 ## Image Overview
 
-* **Base image:** `dhi.io/debian-base:trixie`
+* **Base image:** `debian:trixie-slim`
 * **Entrypoint:** `/usr/local/bin/FastTransfer`
 * **Repository:** [https://github.com/aetperf/FastTransfer-Image](https://github.com/aetperf/FastTransfer-Image)
 * **DockerHub:** [aetp/fasttransfer](https://hub.docker.com/r/aetp/fasttransfer)
