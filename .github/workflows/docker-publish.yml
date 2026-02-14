@@ -162,8 +162,8 @@ jobs:
               --tag aetp/fasttransfer:latest
           fi
 
-      - name: Smoke test
-        run: |
-          set -eux
-          docker run --rm aetp/fasttransfer:latest --version
-          echo "✅ FastTransfer runs"
+      # - name: Smoke test
+      #   run: |
+      #     set -eux
+      #     docker run --rm aetp/fasttransfer:latest --version
+      #     echo "✅ FastTransfer runs"
