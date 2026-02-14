@@ -14,6 +14,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
+
     steps:
       - uses: actions/checkout@v4
 
@@ -65,6 +66,8 @@ jobs:
           fi
 
       - name: Build and push all versions
+        env:
+          S3_BASE_PATH: ${{ secrets.AWS_S3_FASTTRANSFER_PATH }}
         run: |
           NEW_VERSION="${{ steps.versions.outputs.new_version }}"
           VERSIONS="${{ steps.versions.outputs.versions }}"
@@ -83,7 +86,7 @@ jobs:
             
             # Download FastTransfer binary
             FILE="FastTransfer-linux-x64-${VERSION}.zip"
-            S3_PATH="s3://aetpshared/FastTransfer/full/${FILE}"
+            S3_PATH="${S3_BASE_PATH}${FILE}"
             
             echo "Checking if ${S3_PATH} exists..."
             if ! aws s3 ls "${S3_PATH}" >/dev/null 2>&1; then
@@ -123,7 +126,7 @@ jobs:
             echo "================================================"
             
             FILE="FastTransfer-linux-x64-${NEW_VERSION}.zip"
-            S3_PATH="s3://aetpshared/FastTransfer/full/${FILE}"
+            S3_PATH="${S3_BASE_PATH}${FILE}"
             
             echo "Checking if ${S3_PATH} exists..."
             aws s3 ls "${S3_PATH}" >/dev/null
