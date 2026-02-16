@@ -7,8 +7,8 @@ on:
         description: 'Version tag from FastTransfer (ex: v0.28.0)'
         required: true
   schedule:
-    # Rebuild every Monday at 3 AM UTC to get latest base image updates
-    - cron: '0 3 * * 1'
+    # Rebuild every Monday at 8:35 AM UTC to get latest base image updates
+    - cron: '35 8 * * 1'
 
 jobs:
   build-and-push:
@@ -153,23 +153,34 @@ jobs:
             echo "✅ Successfully built and pushed: ${NEW_VERSION}"
             
             # Tag as latest (separate step to ensure latest timestamp)
-            echo "Tagging latest with ${NEW_VERSION}..."
-            docker buildx imagetools create \
-              aetp/fasttransfer:${NEW_VERSION} \
-              --tag aetp/fasttransfer:latest
-            
-            echo "✅ Tagged as latest"
+            if [ -n "$NEW_VERSION" ]; then
+              echo "Tagging latest with ${NEW_VERSION}..."
+              docker buildx imagetools create \
+                aetp/fasttransfer:${NEW_VERSION} \
+                --tag aetp/fasttransfer:latest
+              echo "✅ Tagged as latest"
+            else
+              echo "⚠️  Warning: NEW_VERSION is empty, skipping latest tag"
+            fi
             
             rm -rf ./FastTransfer ./FastTransfer_extracted
           fi
           
           # For scheduled builds, update latest with the most recent version
           if [ "${{ github.event_name }}" = "schedule" ] && [ -n "$VERSIONS" ]; then
+            echo "DEBUG: VERSIONS='$VERSIONS'"
             LATEST_VERSION=$(echo "$VERSIONS" | tr ' ' '\n' | tail -n 1)
-            echo "Tagging latest with ${LATEST_VERSION}..."
-            docker buildx imagetools create \
-              aetp/fasttransfer:${LATEST_VERSION} \
-              --tag aetp/fasttransfer:latest
+            echo "DEBUG: LATEST_VERSION='$LATEST_VERSION'"
+            
+            if [ -n "$LATEST_VERSION" ]; then
+              echo "Tagging latest with ${LATEST_VERSION}..."
+              docker buildx imagetools create \
+                aetp/fasttransfer:${LATEST_VERSION} \
+                --tag aetp/fasttransfer:latest
+              echo "✅ Successfully tagged latest"
+            else
+              echo "⚠️  Warning: No version found to tag as latest"
+            fi
           fi
 
       # - name: Smoke test
