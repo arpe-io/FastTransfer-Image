@@ -37,7 +37,7 @@ jobs:
         id: versions
         run: |
           # Get all existing tags from Docker Hub
-          ALL_VERSIONS=$(curl -s "https://hub.docker.com/v2/repositories/aetp/fasttransfer/tags/?page_size=100" | \
+          ALL_VERSIONS=$(curl -s "https://hub.docker.com/v2/repositories/arpeio/fasttransfer/tags/?page_size=100" | \
             jq -r '.results[].name' | grep '^v[0-9]' | sort -V)
           
           # Find the latest version of each minor branch (e.g., latest 0.28.x, 0.27.x, etc.)
@@ -106,7 +106,7 @@ jobs:
             docker buildx build \
               --push \
               --platform linux/amd64 \
-              --tag aetp/fasttransfer:${VERSION} \
+              --tag arpeio/fasttransfer:${VERSION} \
               --provenance=true \
               --sbom=true \
               --no-cache \
@@ -143,7 +143,7 @@ jobs:
             docker buildx build \
               --push \
               --platform linux/amd64 \
-              --tag aetp/fasttransfer:${NEW_VERSION} \
+              --tag arpeio/fasttransfer:${NEW_VERSION} \
               --provenance=true \
               --sbom=true \
               --no-cache \
@@ -155,8 +155,8 @@ jobs:
             if [ -n "$NEW_VERSION" ]; then
               echo "Tagging latest with ${NEW_VERSION}..."
               docker buildx imagetools create \
-                aetp/fasttransfer:${NEW_VERSION} \
-                --tag aetp/fasttransfer:latest
+                arpeio/fasttransfer:${NEW_VERSION} \
+                --tag arpeio/fasttransfer:latest
               echo "✅ Tagged as latest"
             else
               echo "⚠️  Warning: NEW_VERSION is empty, skipping latest tag"
@@ -174,8 +174,8 @@ jobs:
             if [ -n "$LATEST_VERSION" ]; then
               echo "Tagging latest with ${LATEST_VERSION}..."
               docker buildx imagetools create \
-                aetp/fasttransfer:${LATEST_VERSION} \
-                --tag aetp/fasttransfer:latest
+                arpeio/fasttransfer:${LATEST_VERSION} \
+                --tag arpeio/fasttransfer:latest
               echo "✅ Successfully tagged latest"
             else
               echo "⚠️  Warning: No version found to tag as latest"
@@ -185,5 +185,5 @@ jobs:
       # - name: Smoke test
       #   run: |
       #     set -eux
-      #     docker run --rm aetp/fasttransfer:latest --version
+      #     docker run --rm arpeio/fasttransfer:latest --version
       #     echo "✅ FastTransfer runs"

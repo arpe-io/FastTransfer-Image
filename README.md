@@ -1,6 +1,6 @@
 # FastTransfer Docker Image
 
-Minimal, production-ready container image to run **[FastTransfer](https://www.arpe.io/fasttransfer)** (parallel data import/transfer CLI), a high-performance data transfer utility designed for data integration and automation workflows.
+Minimal, production-ready container image to run **[FastTransfer](https://fasttransfer.arpe.io)** (parallel data import/transfer CLI), a high-performance data transfer utility designed for data integration and automation workflows.
 
 This setup targets **FastTransfer ≥ 0.14.0**, which supports passing the license **inline** via `--license "<content>"`.
 
@@ -8,13 +8,13 @@ This setup targets **FastTransfer ≥ 0.14.0**, which supports passing the licen
 
 * **Base image:** `debian:trixie-slim`
 * **Entrypoint:** `/usr/local/bin/FastTransfer`
-* **Repository:** [https://github.com/aetperf/FastTransfer-Image](https://github.com/aetperf/FastTransfer-Image)
-* **DockerHub:** [aetp/fasttransfer](https://hub.docker.com/r/aetp/fasttransfer)
+* **Repository:** [https://github.com/arpe-io/FastTransfer-Image](https://github.com/arpe-io/FastTransfer-Image)
+* **DockerHub:** [arpeio/fasttransfer](https://hub.docker.com/repository/docker/arpeio/fasttransfer/general)
 * **Published automatically** via GitHub Actions for each new release and weekly security updates
 
 > **For custom builds**  
 > The FastTransfer binary is **not** distributed in this repository. Request the **Linux x64** build here:  
-> https://www.arpe.io/get-your-fasttransfer-trial/  
+> [FastTransfer trial](https://arpe.io/get-trial?product=FastTransfer) 
 > Unzip and place it at the repository root (next to the `Dockerfile`), then build your own custom image.
 
 
@@ -49,7 +49,7 @@ This setup targets **FastTransfer ≥ 0.14.0**, which supports passing the licen
 - Optional: `FastTransfer_Settings.json` to mount/copy into `/config` for custom logging settings
 
 ## Get the binary (for build only)
-1. Request a trial: https://www.arpe.io/get-your-fasttransfer-trial/
+1. Request a trial: [FastTransfer trial](https://arpe.io/get-trial?product=FastTransfer)
 2. Rename the downloaded file to `FastTransfer` and ensure it is executable if testing locally:
    ```bash
    chmod +x FastTransfer
@@ -72,7 +72,7 @@ docker run --rm fasttransfer:latest --help
 
 You can use a prebuilt image from DockerHub that already includes the FastTransfer binary. You must provide your own license at runtime.
 
-**DockerHub repository:** [aetp/fasttransfer](https://hub.docker.com/r/aetp/fasttransfer)
+**DockerHub repository:** [arpeio/fasttransfer](https://hub.docker.com/repository/docker/arpeio/fasttransfer/general)
 
 ### Available tags
 - **Version-specific tags** are aligned with FastTransfer releases (e.g., `v0.28.8`)
@@ -88,20 +88,20 @@ You can use a prebuilt image from DockerHub that already includes the FastTransf
 
 ```bash
 # Latest version
-docker pull aetp/fasttransfer:latest
+docker pull arpeio/fasttransfer:latest
 
 # Specific version
-docker pull aetp/fasttransfer:v0.28.8
+docker pull arpeio/fasttransfer:v0.28.8
 ```
 
 ### Run FastTransfer directly
 
 ```bash
 # Get help
-docker run --rm aetp/fasttransfer:latest --help
+docker run --rm arpeio/fasttransfer:latest --help
 
 # Check version
-docker run --rm aetp/fasttransfer:latest --version
+docker run --rm arpeio/fasttransfer:latest --version
 ```
 
 # Usage
@@ -112,10 +112,10 @@ The Docker image uses the FastTransfer binary as its entrypoint, so you can run 
 
 ```bash
 # Get command line help
-docker run --rm aetp/fasttransfer:latest --help
+docker run --rm arpeio/fasttransfer:latest --help
 
 # Check version
-docker run --rm aetp/fasttransfer:latest --version
+docker run --rm arpeio/fasttransfer:latest --version
 ```
 
 ### License requirement
@@ -126,7 +126,7 @@ Since version 0.14.0, pass the **license content directly** via `--license "…"
 export licenseContent=$(cat ./FastTransfer.lic)
 
 # Use $licenseContent in your docker run commands
-docker run --rm aetp/fasttransfer:latest \
+docker run --rm arpeio/fasttransfer:latest \
   --license "$licenseContent" \
   [other parameters...]
 ```
@@ -143,7 +143,7 @@ docker run --rm aetp/fasttransfer:latest \
 export licenseContent=$(cat ./FastTransfer.lic)
 
 docker run --rm \
-aetp/fasttransfer:latest \
+arpeio/fasttransfer:latest \
 --sourceconnectiontype "mssql" \
 --sourceserver "host.docker.internal,1433" \
 --sourceuser "SrcUser" \
@@ -168,7 +168,7 @@ export licenseContent=$(cat ./FastTransfer.lic)
 
 docker run --rm \
 -v /local/data:/data \
-aetp/fasttransfer:latest \
+arpeio/fasttransfer:latest \
 --sourceconnectiontype "file" \
 --fileinput "/data/files/*.csv" \
 --targetconnectiontype "pgcopy" \
@@ -192,7 +192,7 @@ docker run --rm \
 -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
 -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
 -e AWS_REGION=${AWS_REGION} \
-aetp/fasttransfer:latest \
+arpeio/fasttransfer:latest \
 --sourceconnectiontype "mssql" \
 --sourceserver "host.docker.internal,1433" \
 --sourceuser "SrcUser" \
@@ -218,7 +218,7 @@ docker run --rm \
 -e AZURE_CLIENT_ID=${AZURE_CLIENT_ID} \
 -e AZURE_TENANT_ID=${AZURE_TENANT_ID} \
 -e AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET} \
-aetp/fasttransfer:latest \
+arpeio/fasttransfer:latest \
 --sourceconnectiontype "pgcopy" \
 --sourceserver "host.docker.internal:5432" \
 --sourceuser "PgUser" \
@@ -243,7 +243,7 @@ export GOOGLE_APPLICATION_CREDENTIALS_JSON=$(cat ./gcp-credentials.json)
 
 docker run --rm \
 -e GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS_JSON}" \
-aetp/fasttransfer:latest \
+arpeio/fasttransfer:latest \
 --sourceconnectiontype "oraodp" \
 --sourceserver "host.docker.internal:1521/FREEPDB1" \
 --sourceuser "SCHEMA_USER" \
@@ -394,7 +394,7 @@ docker run --rm \
 -v fasttransfer-config:/config \
 -v fasttransfer-data:/data \
 -v fasttransfer-logs:/logs \
-aetp/fasttransfer:latest \
+arpeio/fasttransfer:latest \
 --settingsfile "/config/FastTransfer_Settings.json" \
 --sourceconnectiontype "mssql" \
 --sourceserver "host.docker.internal,1433" \
