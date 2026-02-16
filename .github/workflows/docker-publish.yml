@@ -7,8 +7,7 @@ on:
         description: 'Version tag from FastTransfer (ex: v0.28.0)'
         required: true
   schedule:
-    # Rebuild every Monday at 8:35 AM UTC to get latest base image updates
-    - cron: '35 8 * * 1'
+    - cron: '0 3 * * 1' # Every Monday at 3:00 AM UTC
 
 jobs:
   build-and-push:
