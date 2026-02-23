@@ -28,6 +28,9 @@ RUN mkdir -p /config /data /logs \
 COPY --chown=${USER}:${USER} FastTransfer /usr/local/bin/FastTransfer
 RUN chmod 0755 /usr/local/bin/FastTransfer
 
+# Pre-warm .NET runtime by running FastTransfer once (triggers decompression)
+RUN su - ${USER} -s /bin/sh -c '/usr/local/bin/FastTransfer --version' || true
+
 # OCI Labels
 LABEL org.opencontainers.image.title="FastTransfer (CLI) - Runtime Docker Image" \
       org.opencontainers.image.description="Minimal container to run FastTransfer (parallel transfer database to database)" \
