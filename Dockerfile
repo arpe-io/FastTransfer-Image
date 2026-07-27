@@ -11,7 +11,10 @@ RUN set -eux; \
       passwd \
       libicu76 \
       libssl3 zlib1g libkrb5-3 \
-    ; rm -rf /var/lib/apt/lists/*
+    ; \
+    DEBIAN_FRONTEND=noninteractive apt-get purge -y --allow-remove-essential perl-base; \
+    apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/*
 
 # Non-root user
 ARG USER=fasttransfer
