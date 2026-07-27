@@ -187,3 +187,29 @@ jobs:
       #     set -eux
       #     docker run --rm arpeio/fasttransfer:latest --version
       #     echo "✅ FastTransfer runs"
+
+  keepalive:
+    # GitHub auto-disables scheduled workflows after 60 days of no repository
+    # activity, which silently stops the weekly rebuild AND makes API-based
+    # workflow_dispatch calls fail with 422. Push an empty commit before the
+    # threshold so the schedule stays alive. Commits made with GITHUB_TOKEN
+    # count as activity but do not trigger further workflow runs.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Keepalive commit if repo is going stale
+        run: |
+          set -eux
+          AGE_DAYS=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          if [ "$AGE_DAYS" -lt 50 ]; then
+            echo "Last commit is ${AGE_DAYS} days old (<50); no keepalive needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keepalive to prevent scheduled workflow auto-disable"
+          git push
