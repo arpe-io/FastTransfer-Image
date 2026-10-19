@@ -70,7 +70,65 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.versions.outputs.new_version }}"
           VERSIONS="${{ steps.versions.outputs.versions }}"
-          
+          FINGERPRINT_LABEL="io.arpe.build.fingerprint"
+
+          # Download the FastTransfer binary of a version from S3 into ./FastTransfer
+          download_binary() {
+            FILE="FastTransfer-linux-x64-$1.zip"
+            echo "Downloading ${FILE}..."
+            aws s3 cp "${S3_BASE_PATH}${FILE}" FastTransfer.zip
+            unzip -o FastTransfer.zip -d ./FastTransfer_extracted
+            rm FastTransfer.zip
+            mv -f ./FastTransfer_extracted/FastTransfer ./FastTransfer
+            chmod +x ./FastTransfer
+          }
+
+          # Build a version locally and push it only if its content (installed
+          # Debian packages + binary + Dockerfile) differs from the image already
+          # on Docker Hub. Every push leaves the previous digest behind as an
+          # untagged image, so pushing identical weekly rebuilds bloats the repo.
+          build_and_push() {
+            VERSION="$1"
+            download_binary "$VERSION"
+
+            # Local build first; the push build below reuses its layers
+            docker buildx build \
+              --load \
+              --platform linux/amd64 \
+              --tag fasttransfer-candidate:${VERSION} \
+              --no-cache \
+              --cache-to type=local,dest=/tmp/buildcache,mode=max \
+              .
+
+            FINGERPRINT=$( {
+              docker run --rm --entrypoint dpkg-query fasttransfer-candidate:${VERSION} -W -f '${Package}=${Version}\n'
+              sha256sum FastTransfer Dockerfile
+            } | sha256sum | cut -d' ' -f1)
+
+            PUBLISHED=$(docker buildx imagetools inspect arpeio/fasttransfer:${VERSION} --format '{{json .Image}}' 2>/dev/null | \
+              jq -r --arg l "$FINGERPRINT_LABEL" '(if has("config") then . else .["linux/amd64"] end).config.Labels[$l] // empty' || true)
+
+            if [ "$FINGERPRINT" = "$PUBLISHED" ]; then
+              echo "⏭️  ${VERSION} unchanged since last push (fingerprint ${FINGERPRINT}), skipping"
+            else
+              echo "Content changed (published: '${PUBLISHED}', new: '${FINGERPRINT}'), pushing..."
+              docker buildx build \
+                --push \
+                --platform linux/amd64 \
+                --tag arpeio/fasttransfer:${VERSION} \
+                --label ${FINGERPRINT_LABEL}=${FINGERPRINT} \
+                --provenance=true \
+                --sbom=true \
+                --cache-from type=local,src=/tmp/buildcache \
+                .
+              echo "✅ Successfully built and pushed: ${VERSION}"
+            fi
+
+            # Cleanup
+            docker rmi fasttransfer-candidate:${VERSION}
+            rm -rf ./FastTransfer ./FastTransfer_extracted /tmp/buildcache
+          }
+
           # Build/rebuild existing versions first (oldest to newest)
           for VERSION in $VERSIONS; do
             # Skip if this is the new version (will be built last)
@@ -78,108 +136,47 @@ jobs:
               echo "Skipping $VERSION (will be built as new version at the end)"
               continue
             fi
-            
+
             echo "================================================"
             echo "Building version: $VERSION"
             echo "================================================"
-            
-            # Download FastTransfer binary
-            FILE="FastTransfer-linux-x64-${VERSION}.zip"
-            S3_PATH="${S3_BASE_PATH}${FILE}"
-            
+
+            S3_PATH="${S3_BASE_PATH}FastTransfer-linux-x64-${VERSION}.zip"
             echo "Checking if ${S3_PATH} exists..."
             if ! aws s3 ls "${S3_PATH}" >/dev/null 2>&1; then
               echo "⚠️  Warning: ${S3_PATH} not found, skipping..."
               continue
             fi
-            
-            echo "Downloading ${FILE}..."
-            aws s3 cp "${S3_PATH}" FastTransfer.zip
-            
-            unzip -o FastTransfer.zip -d ./FastTransfer_extracted
-            rm FastTransfer.zip
-            
-            mv -f ./FastTransfer_extracted/FastTransfer ./FastTransfer
-            chmod +x ./FastTransfer
-            
-            # Build and push (version tag only, no 'latest')
-            docker buildx build \
-              --push \
-              --platform linux/amd64 \
-              --tag arpeio/fasttransfer:${VERSION} \
-              --provenance=true \
-              --sbom=true \
-              --no-cache \
-              .
-            
-            echo "✅ Successfully built and pushed: ${VERSION}"
-            
-            # Cleanup
-            rm -rf ./FastTransfer ./FastTransfer_extracted
+
+            build_and_push "$VERSION"
           done
-          
+
           # Build the new version last (manual builds only)
           if [ -n "$NEW_VERSION" ]; then
             echo "================================================"
             echo "Building NEW version: $NEW_VERSION"
             echo "================================================"
-            
-            FILE="FastTransfer-linux-x64-${NEW_VERSION}.zip"
-            S3_PATH="${S3_BASE_PATH}${FILE}"
-            
+
+            S3_PATH="${S3_BASE_PATH}FastTransfer-linux-x64-${NEW_VERSION}.zip"
             echo "Checking if ${S3_PATH} exists..."
             aws s3 ls "${S3_PATH}" >/dev/null
-            
-            echo "Downloading ${FILE}..."
-            aws s3 cp "${S3_PATH}" FastTransfer.zip
-            
-            unzip -o FastTransfer.zip -d ./FastTransfer_extracted
-            rm FastTransfer.zip
-            
-            mv -f ./FastTransfer_extracted/FastTransfer ./FastTransfer
-            chmod +x ./FastTransfer
-            
-            # Build new version (version tag only)
-            docker buildx build \
-              --push \
-              --platform linux/amd64 \
-              --tag arpeio/fasttransfer:${NEW_VERSION} \
-              --provenance=true \
-              --sbom=true \
-              --no-cache \
-              .
-            
-            echo "✅ Successfully built and pushed: ${NEW_VERSION}"
-            
-            # Tag as latest (separate step to ensure latest timestamp)
-            if [ -n "$NEW_VERSION" ]; then
-              echo "Tagging latest with ${NEW_VERSION}..."
-              docker buildx imagetools create \
-                arpeio/fasttransfer:${NEW_VERSION} \
-                --tag arpeio/fasttransfer:latest
-              echo "✅ Tagged as latest"
-            else
-              echo "⚠️  Warning: NEW_VERSION is empty, skipping latest tag"
-            fi
-            
-            rm -rf ./FastTransfer ./FastTransfer_extracted
+
+            build_and_push "$NEW_VERSION"
+            LATEST_VERSION="$NEW_VERSION"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Scheduled builds: latest follows the most recent version
+            LATEST_VERSION=$(echo "$VERSIONS" | tr ' ' '\n' | grep -v '^$' | tail -n 1)
           fi
-          
-          # For scheduled builds, update latest with the most recent version
-          if [ "${{ github.event_name }}" = "schedule" ] && [ -n "$VERSIONS" ]; then
-            echo "DEBUG: VERSIONS='$VERSIONS'"
-            LATEST_VERSION=$(echo "$VERSIONS" | tr ' ' '\n' | tail -n 1)
-            echo "DEBUG: LATEST_VERSION='$LATEST_VERSION'"
-            
-            if [ -n "$LATEST_VERSION" ]; then
-              echo "Tagging latest with ${LATEST_VERSION}..."
-              docker buildx imagetools create \
-                arpeio/fasttransfer:${LATEST_VERSION} \
-                --tag arpeio/fasttransfer:latest
-              echo "✅ Successfully tagged latest"
-            else
-              echo "⚠️  Warning: No version found to tag as latest"
-            fi
+
+          # Tag latest separately (re-pointing to an unchanged image creates no new digest)
+          if [ -n "$LATEST_VERSION" ]; then
+            echo "Tagging latest with ${LATEST_VERSION}..."
+            docker buildx imagetools create \
+              arpeio/fasttransfer:${LATEST_VERSION} \
+              --tag arpeio/fasttransfer:latest
+            echo "✅ Tagged as latest"
+          else
+            echo "⚠️  Warning: No version found to tag as latest"
           fi
 
       # - name: Smoke test
