@@ -66,11 +66,21 @@ jobs:
 
       - name: Build and push all versions
         env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           S3_BASE_PATH: ${{ secrets.AWS_S3_FASTTRANSFER_PATH }}
         run: |
           NEW_VERSION="${{ steps.versions.outputs.new_version }}"
           VERSIONS="${{ steps.versions.outputs.versions }}"
           FINGERPRINT_LABEL="io.arpe.build.fingerprint"
+          REPLACED_DIGESTS=""
+
+          # Print the index digest of a tag and the digests of its children
+          # (image + attestation); prints nothing if the tag doesn't exist
+          manifest_digests() {
+            docker buildx imagetools inspect arpeio/fasttransfer:$1 --format '{{json .Manifest}}' 2>/dev/null | \
+              jq -r '.digest, .manifests[]?.digest' || true
+          }
 
           # Download the FastTransfer binary of a version from S3 into ./FastTransfer
           download_binary() {
@@ -112,6 +122,7 @@ jobs:
               echo "⏭️  ${VERSION} unchanged since last push (fingerprint ${FINGERPRINT}), skipping"
             else
               echo "Content changed (published: '${PUBLISHED}', new: '${FINGERPRINT}'), pushing..."
+              REPLACED_DIGESTS="$REPLACED_DIGESTS $(manifest_digests ${VERSION})"
               docker buildx build \
                 --push \
                 --platform linux/amd64 \
@@ -171,12 +182,37 @@ jobs:
           # Tag latest separately (re-pointing to an unchanged image creates no new digest)
           if [ -n "$LATEST_VERSION" ]; then
             echo "Tagging latest with ${LATEST_VERSION}..."
+            REPLACED_DIGESTS="$REPLACED_DIGESTS $(manifest_digests latest)"
             docker buildx imagetools create \
               arpeio/fasttransfer:${LATEST_VERSION} \
               --tag arpeio/fasttransfer:latest
             echo "✅ Tagged as latest"
           else
             echo "⚠️  Warning: No version found to tag as latest"
+          fi
+
+          # Delete the manifests replaced by this run's pushes: Docker Hub keeps
+          # them forever as untagged images. Anything still used by a tag is kept.
+          REPLACED_DIGESTS=$(echo $REPLACED_DIGESTS | tr ' ' '\n' | sort -u)
+          if [ -n "$REPLACED_DIGESTS" ]; then
+            TAGS=$(curl -sf "https://hub.docker.com/v2/repositories/arpeio/fasttransfer/tags?page_size=100" | jq -r '.results[].name')
+            IN_USE=$(for T in $TAGS; do manifest_digests "$T"; done)
+            if [ -z "$TAGS" ] || [ -z "$IN_USE" ]; then
+              echo "⚠️  Warning: could not read current tags, skipping cleanup"
+            else
+              REGISTRY_TOKEN=$(curl -sf -u "${DOCKERHUB_USERNAME}:${DOCKERHUB_TOKEN}" \
+                "https://auth.docker.io/token?service=registry.docker.io&scope=repository:arpeio/fasttransfer:pull,delete" | jq -r .token)
+              for DIGEST in $REPLACED_DIGESTS; do
+                if echo "$IN_USE" | grep -qx "$DIGEST"; then
+                  echo "Keeping ${DIGEST} (still used by a tag)"
+                  continue
+                fi
+                STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE \
+                  -H "Authorization: Bearer ${REGISTRY_TOKEN}" \
+                  "https://registry-1.docker.io/v2/arpeio/fasttransfer/manifests/${DIGEST}")
+                echo "🗑️  Deleted replaced manifest ${DIGEST} (HTTP ${STATUS})"
+              done
+            fi
           fi
 
       # - name: Smoke test
