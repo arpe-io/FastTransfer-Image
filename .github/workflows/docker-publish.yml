@@ -6,6 +6,10 @@ on:
       version:
         description: 'Version tag from FastTransfer (ex: v0.28.0)'
         required: true
+      only_this_version:
+        description: 'Build only this version (do not rebuild the latest of each minor branch)'
+        type: boolean
+        default: false
   schedule:
     - cron: '0 3 * * 1' # Every Monday at 3:00 AM UTC
 
@@ -36,9 +40,11 @@ jobs:
       - name: Get versions to build
         id: versions
         run: |
-          # Get all existing tags from Docker Hub
+          # Get all existing release tags from Docker Hub. Pre-release tags (e.g.
+          # v1.0.0-rc6) are excluded: sort -V orders them after the final release,
+          # so they would be picked as "latest of the minor branch" and as latest.
           ALL_VERSIONS=$(curl -s "https://hub.docker.com/v2/repositories/arpeio/fasttransfer/tags/?page_size=100" | \
-            jq -r '.results[].name' | grep '^v[0-9]' | sort -V)
+            jq -r '.results[].name' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
           
           # Find the latest version of each minor branch (e.g., latest 0.28.x, 0.27.x, etc.)
           LATEST_PER_MINOR=$(echo "$ALL_VERSIONS" | \
@@ -53,13 +59,25 @@ jobs:
             echo "Versions to rebuild: $LATEST_PER_MINOR"
             echo "versions=$LATEST_PER_MINOR" >> $GITHUB_OUTPUT
             echo "new_version=" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.only_this_version }}" = "true" ]; then
+            NEW_VERSION="${{ github.event.inputs.version }}"
+            echo "Manual build: building only $NEW_VERSION"
+            echo "versions=" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            # Only move latest if this is the most recent version (rebuilding an
+            # older version on its own must not re-point latest to it)
+            HIGHEST=$(printf '%s\n' $ALL_VERSIONS "$NEW_VERSION" | sort -V | tail -n 1)
+            if [ "$HIGHEST" != "$NEW_VERSION" ]; then
+              echo "$NEW_VERSION is older than $HIGHEST: latest will not be moved"
+              echo "skip_latest=true" >> $GITHUB_OUTPUT
+            fi
           else
             echo "Manual build: building new version + latest of each minor branch"
             NEW_VERSION="${{ github.event.inputs.version }}"
-            
+
             echo "New version: $NEW_VERSION"
             echo "Latest versions per minor branch to rebuild: $LATEST_PER_MINOR"
-            
+
             echo "versions=$LATEST_PER_MINOR" >> $GITHUB_OUTPUT
             echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           fi
@@ -173,7 +191,9 @@ jobs:
             aws s3 ls "${S3_PATH}" >/dev/null
 
             build_and_push "$NEW_VERSION"
-            LATEST_VERSION="$NEW_VERSION"
+            if [ "${{ steps.versions.outputs.skip_latest }}" != "true" ]; then
+              LATEST_VERSION="$NEW_VERSION"
+            fi
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             # Scheduled builds: latest follows the most recent version
             LATEST_VERSION=$(echo "$VERSIONS" | tr ' ' '\n' | grep -v '^$' | tail -n 1)
