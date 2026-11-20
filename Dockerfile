@@ -2,15 +2,18 @@
 FROM debian:trixie-slim
 
 
-# Common runtime packages for self-contained .NET binaries (ICU/SSL/zlib/Kerberos), CA, tz, curl
+# Common runtime packages for self-contained .NET binaries (ICU/SSL/zlib/Kerberos/GSSAPI), CA, tz.
+# No curl: it is not used by the image and pulled libcurl + openldap/gnutls/libssh2 (extra CVEs).
+# libgssapi-krb5-2 is listed explicitly: it used to come only as a curl dependency, and .NET
+# loads it for Kerberos/Negotiate (integrated) authentication.
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ca-certificates tzdata curl \
+      ca-certificates tzdata \
       passwd \
       libicu76 \
-      libssl3 zlib1g libkrb5-3 \
+      libssl3 zlib1g libkrb5-3 libgssapi-krb5-2 \
     ; \
     DEBIAN_FRONTEND=noninteractive apt-get purge -y --allow-remove-essential perl-base; \
     apt-get autoremove -y; \

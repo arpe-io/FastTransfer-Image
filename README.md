@@ -434,7 +434,7 @@ If the `--settingsfile` argument is not provided, FastTransfer will use its buil
 
 ## Troubleshooting
 - **Exec format error** → ensure the binary is Linux x64 and executable (`chmod +x FastTransfer`).
-- **Missing `libicu`/`libssl`/`zlib`/`krb5`** → the image includes `libicu76`, `libssl3`, `zlib1g`, `libkrb5-3`. If your build requires additional libs, add them via `apt`.
+- **Missing `libicu`/`libssl`/`zlib`/`krb5`** → the image includes `libicu76`, `libssl3`, `zlib1g`, `libkrb5-3`, `libgssapi-krb5-2`. `curl` is not included (to reduce the CVE surface). If your build requires additional libs, add them via `apt`.
 - **Permission denied** writing under `/data` or `/logs` → ensure the host directory permissions match the container UID (`10001`).
 - **DB host not reachable** → on Linux, use `--add-host=host.docker.internal:host-gateway` or the Compose `extra_hosts` equivalent.
 - **License error / invalid license** → verify you passed correct license content via `--license`, or that your trial license is valid and the binary version matches.
